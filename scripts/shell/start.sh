@@ -5,8 +5,13 @@
 
 set -e
 
+# Get the project root directory (two levels up from this script)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "🇫🇷 French Jobs Data Pipeline - Startup"
 echo "========================================"
+echo "Project root: $PROJECT_ROOT"
 echo ""
 
 # Colors for output
@@ -43,13 +48,13 @@ echo ""
 # Create necessary directories
 echo "Creating data directories..."
 mkdir -p data/raw data/processed data/analytics
-mkdir -p airflow/dags airflow/logs airflow/plugins
+mkdir -p logs
 echo -e "${GREEN}✓ Directories created${NC}"
 echo ""
 
 # Create .gitkeep files
 touch data/raw/.gitkeep data/processed/.gitkeep data/analytics/.gitkeep
-touch airflow/logs/.gitkeep
+touch logs/.gitkeep
 
 # Build and start services
 echo "Building Docker images..."

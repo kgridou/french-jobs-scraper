@@ -5,8 +5,13 @@
 
 set -e
 
+# Get the project root directory (two levels up from this script)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "🗑️  French Jobs Pipeline - Cleanup"
 echo "================================="
+echo "Project root: $PROJECT_ROOT"
 echo ""
 echo "⚠️  WARNING: This will remove:"
 echo "  - All Docker containers"
@@ -28,13 +33,13 @@ echo "Removing data directories..."
 rm -rf data/raw/*
 rm -rf data/processed/*
 rm -rf data/analytics/*
-rm -rf airflow/logs/*
+rm -rf logs/*
 
-echo "Cleaning up Airflow metadata..."
-rm -f airflow/*.pid
-rm -f airflow/*.db
+echo "Cleaning up temporary files..."
+find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 echo ""
 echo "✅ Cleanup complete!"
 echo ""
-echo "To start fresh, run: ./start.sh"
+echo "To start fresh, run: scripts/shell/start.sh"

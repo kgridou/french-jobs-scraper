@@ -32,6 +32,8 @@ Web Scraping → PostgreSQL (raw_jobs) → Pandas Cleaning → PySpark Analytics
 ## Development Commands
 
 ### Starting/Stopping Services
+
+**Using Makefile (Recommended):**
 ```bash
 # First time setup
 make init          # Creates directories, copies .env.example to .env
@@ -43,6 +45,16 @@ make down          # Stop services
 make restart       # Restart all services
 make clean         # Remove containers, volumes, and data files
 ```
+
+**Using Shell Scripts (Alternative):**
+```bash
+# From project root
+scripts/shell/start.sh    # Complete initialization and startup
+scripts/shell/stop.sh     # Gracefully stop all services
+scripts/shell/cleanup.sh  # Remove containers, volumes, and data (WARNING: destructive)
+```
+
+**Note:** Shell scripts automatically navigate to project root, so they work from any directory.
 
 ### Testing and Development
 ```bash
@@ -95,7 +107,11 @@ french-jobs-scraper/
 │   ├── scraper.py                 # Generic scraper base class
 │   ├── pandas_processor.py        # Data cleaning with Pandas
 │   ├── spark_processor.py         # PySpark analytics and enrichment
-│   └── enrich_jobs.py             # Spark job for skill extraction and classification
+│   ├── enrich_jobs.py             # Spark job for skill extraction and classification
+│   └── shell/                     # Shell utility scripts
+│       ├── start.sh               # Startup script (initializes and starts all services)
+│       ├── stop.sh                # Stop script (gracefully stops services)
+│       └── cleanup.sh             # Cleanup script (removes containers, volumes, data)
 ├── sql/
 │   ├── init.sql                   # Database schema initialization
 │   ├── sample_queries.sql         # Example analytics queries

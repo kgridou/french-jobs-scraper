@@ -68,11 +68,15 @@ french-jobs-scraper/
 │   ├── base_scraper.py
 │   ├── indeed_scraper.py
 │   └── hellowork_scraper.py
-├── scripts/                          # Data processing scripts
+├── scripts/                          # Data processing and utility scripts
 │   ├── scraper.py
 │   ├── pandas_processor.py
 │   ├── spark_processor.py
-│   └── enrich_jobs.py
+│   ├── enrich_jobs.py
+│   └── shell/                        # Shell scripts
+│       ├── start.sh
+│       ├── stop.sh
+│       └── cleanup.sh
 ├── sql/                              # Database schema and queries
 │   ├── init.sql
 │   ├── sample_queries.sql
