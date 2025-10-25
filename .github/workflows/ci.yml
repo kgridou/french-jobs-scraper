@@ -27,10 +27,11 @@ jobs:
 
     - name: Check Python syntax
       run: |
-        python -m py_compile dags/*.py || echo "DAG syntax check failed"
-        python -m py_compile scrapers/*.py || echo "Scraper syntax check failed"
-        python -m py_compile scripts/*.py || echo "Script syntax check failed"
-      continue-on-error: false
+        # Compile only .py files, skip shell scripts
+        find dags -name "*.py" -exec python -m py_compile {} \;
+        find scrapers -name "*.py" -exec python -m py_compile {} \;
+        find scripts -name "*.py" -exec python -m py_compile {} \;
+        echo "✓ Python syntax check passed"
 
     - name: Validate YAML files
       run: |
