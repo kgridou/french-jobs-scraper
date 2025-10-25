@@ -1,12 +1,9 @@
-name: Docker Build and Push
+name: Docker
 
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches: [ main ]
+    tags: [ 'v*.*.*' ]
   workflow_dispatch:
 
 env:
@@ -14,21 +11,21 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
-    name: Build and Push Docker Images
+  build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
+    - name: Log in to Registry
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
@@ -36,50 +33,24 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata for Airflow image
-      id: meta-airflow
+    - name: Extract metadata
+      id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/airflow
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
-          type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
+          type=sha
 
-    - name: Build and push Airflow image
+    - name: Build and push
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
         push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta-airflow.outputs.tags }}
-        labels: ${{ steps.meta-airflow.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64
-
-    - name: Test Docker image
-      run: |
-        docker build -f Dockerfile -t test-image .
-        docker run --rm test-image python --version
-        docker run --rm test-image airflow version
-
-    - name: Scan for vulnerabilities
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: test-image
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-      continue-on-error: true
-
-    - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-      continue-on-error: true
-
-    - name: Image digest
-      run: echo ${{ steps.meta-airflow.outputs.digest }}

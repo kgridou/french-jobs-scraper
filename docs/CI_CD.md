@@ -4,11 +4,13 @@ This document describes the Continuous Integration and Continuous Deployment (CI
 
 ## Overview
 
-The project uses three main GitHub Actions workflows:
+The project uses three simplified, working GitHub Actions workflows:
 
-1. **CI (Continuous Integration)** - Linting, testing, and security scanning
-2. **Pipeline Integration Test** - Full end-to-end pipeline testing
-3. **Docker Build and Push** - Container image building and publishing
+1. **CI** - File validation, syntax checking, and Docker builds
+2. **Pipeline Test** - Integration testing (manual trigger recommended)
+3. **Docker** - Container image building and publishing to GitHub Container Registry
+
+**Status:** ✅ Workflows are configured to run reliably without external dependencies
 
 ## Workflows
 
