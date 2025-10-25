@@ -270,9 +270,9 @@ Key variables set in docker-compose.yml:
 - Check memory allocation if processing large datasets
 
 **Database connection errors:**
-- Ensure PostgreSQL service is healthy: `docker-compose ps`
+- Ensure PostgreSQL service is healthy: `docker compose ps`
 - Wait for initialization to complete (~30-60 seconds on first run)
-- Check logs: `docker-compose logs postgres`
+- Check logs: `docker compose logs postgres`
 
 ## Performance Tuning
 
@@ -327,7 +327,7 @@ pytest tests/ -v --cov=scrapers --cov=scripts
 
 # Test Docker build
 docker build -f Dockerfile -t test .
-docker-compose config
+docker compose config
 ```
 
 ### Adding Tests

@@ -12,7 +12,7 @@ Make sure you have installed:
 Check your versions:
 ```bash
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ## Step 1: Initial Setup
@@ -82,7 +82,7 @@ make test-scraper    # Test the scraper
 make test-pandas     # Test pandas processor
 
 # Or trigger the full pipeline via Airflow CLI
-docker-compose exec airflow-scheduler airflow dags trigger french_jobs_pipeline
+docker compose exec airflow-scheduler airflow dags trigger french_jobs_pipeline
 ```
 
 ## Step 5: Monitor Progress

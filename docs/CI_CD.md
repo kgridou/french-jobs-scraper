@@ -85,7 +85,7 @@ on:
 **Example Service Check:**
 ```bash
 # Wait for PostgreSQL
-while ! docker-compose exec -T postgres pg_isready -U airflow; do
+while ! docker compose exec -T postgres pg_isready -U airflow; do
   echo "Waiting for PostgreSQL..."
   sleep 2
 done
@@ -144,7 +144,7 @@ docker run --rm french-jobs-scraper:test python --version
 docker run --rm french-jobs-scraper:test airflow version
 
 # Validate docker-compose
-docker-compose config
+docker compose config
 ```
 
 ### Run Tests Locally
@@ -162,9 +162,9 @@ pytest tests/ -v --cov=scrapers --cov=scripts
 scripts/shell/start.sh
 
 # Or manually
-docker-compose up -d
-docker-compose exec airflow-webserver airflow dags list
-docker-compose exec postgres psql -U airflow -d jobs_db -c "\dt"
+docker compose up -d
+docker compose exec airflow-webserver airflow dags list
+docker compose exec postgres psql -U airflow -d jobs_db -c "\dt"
 ```
 
 ## GitHub Actions Setup

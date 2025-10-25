@@ -40,12 +40,12 @@ cd french-jobs-scraper
 
 2. **Start the entire stack**:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 3. **Wait for services to initialize** (30-60 seconds):
 ```bash
-docker-compose logs -f airflow-init
+docker compose logs -f airflow-init
 ```
 
 4. **Access services**:
@@ -186,13 +186,13 @@ Edit `config/scraper_config.yaml` to customize:
 
 **Airflow webserver not starting**:
 ```bash
-docker-compose logs airflow-webserver
-docker-compose restart airflow-webserver
+docker compose logs airflow-webserver
+docker compose restart airflow-webserver
 ```
 
 **Database connection issues**:
 ```bash
-docker-compose exec postgres psql -U airflow -d jobs_db
+docker compose exec postgres psql -U airflow -d jobs_db
 ```
 
 **Check Spark jobs**:
@@ -228,7 +228,7 @@ To add new scrapers or processors:
 1. Create new scraper in `scrapers/` inheriting from `base_scraper.py`
 2. Add processing scripts in `scripts/`
 3. Update Airflow DAG in `dags/french_jobs_pipeline.py`
-4. Rebuild containers: `docker-compose up -d --build`
+4. Rebuild containers: `docker compose up -d --build`
 
 ## 🤝 Portfolio Showcase
 
