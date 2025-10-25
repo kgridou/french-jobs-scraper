@@ -53,10 +53,12 @@ docker compose logs -f airflow-init
 - Spark Master UI: http://localhost:8081
 - PostgreSQL: localhost:5432 (user: `airflow`, password: `airflow`, db: `jobs_db`)
 
-5. **Trigger the pipeline**:
-- Navigate to Airflow UI
-- Enable the `french_jobs_pipeline` DAG
-- Trigger manually or wait for scheduled run (daily at 2 AM)
+5. **Trigger the pipeline to get data**:
+- Navigate to Airflow UI → http://localhost:8080
+- Find the `french_jobs_pipeline` DAG
+- Toggle it ON to enable
+- Click the ▶️ Play button to trigger manually
+- **See [RUNNING_THE_SCRAPER.md](docs/RUNNING_THE_SCRAPER.md) for detailed instructions**
 
 ## 📂 Project Structure
 
@@ -201,13 +203,13 @@ Visit http://localhost:8081 for Spark Master UI
 ## 📚 Documentation
 
 Additional documentation is available in the `docs/` directory:
+- **[RUNNING_THE_SCRAPER.md](docs/RUNNING_THE_SCRAPER.md)** - 🚀 **How to actually run the scraper and get data**
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Detailed step-by-step setup guide
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design
 - **[CI_CD.md](docs/CI_CD.md)** - CI/CD pipeline with GitHub Actions
+- **[DOCKER_COMPOSE_FIX.md](docs/DOCKER_COMPOSE_FIX.md)** - Docker Compose fixes and troubleshooting
 - **[STRUCTURE.md](docs/STRUCTURE.md)** - Complete project structure details
 - **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Project overview and features
-- **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Getting started guide
-- **[SETUP_NOTES.md](docs/SETUP_NOTES.md)** - Additional setup notes
 
 For AI-assisted development, see **[CLAUDE.md](CLAUDE.md)** in the root directory.
 
