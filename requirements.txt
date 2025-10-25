@@ -11,7 +11,7 @@ pyspark==3.5.0
 
 # Database
 psycopg2-binary==2.9.9
-sqlalchemy==2.0.25
+sqlalchemy>=1.4.28,<2.0
 
 # Configuration
 pyyaml==6.0.1
@@ -21,5 +21,7 @@ python-dotenv==1.0.0
 pytz==2023.3
 
 # Apache Airflow providers (if not already included in base image)
-apache-airflow-providers-postgres==5.10.0
-apache-airflow-providers-apache-spark==4.7.0
+# Note: These are already included in the Airflow Docker image
+# Uncomment only if needed for local development
+# apache-airflow-providers-postgres==5.10.0
+# apache-airflow-providers-apache-spark==4.7.0
