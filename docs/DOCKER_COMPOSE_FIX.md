@@ -21,23 +21,25 @@ Removed `version: '3.8'` from the top of the file.
 ```
 manifest for bitnami/spark:3.5 not found: manifest unknown
 manifest for bitnami/spark:3.5.1 not found: manifest unknown
+manifest for bitnami/spark:3.5.3 not found: manifest unknown
 ```
 
 **Fix:**
-Changed Spark image tags:
+Switched from Bitnami to official Apache Spark image:
 ```yaml
 # Before
 image: bitnami/spark:3.5
 
 # After
-image: bitnami/spark:3.5.3
+image: apache/spark:3.5.3
 ```
 
 **Why:**
-- The `bitnami/spark:3.5` and `3.5.1` tags don't exist in Docker Hub
-- Available versions are like 3.5.3, 3.5.6-1, etc.
-- Using `bitnami/spark:3.5.3` which is a confirmed available tag
-- This prevents the "manifest unknown" error
+- Bitnami Spark tags were not accessible or don't exist in Docker Hub
+- The official Apache Spark images (`apache/spark`) are more reliable
+- Using `apache/spark:3.5.3` which is confirmed available
+- Version 3.5.3 is used (avoiding version 4.x for compatibility)
+- Updated environment variables and commands to match Apache Spark image requirements
 
 ## Updated docker-compose.yml Structure
 
@@ -54,11 +56,13 @@ services:
     ...
 
   spark-master:
-    image: bitnami/spark:3.5.3  # Fixed
+    image: apache/spark:3.5.3  # Fixed - using official Apache image
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ...
 
   spark-worker:
-    image: bitnami/spark:3.5.3  # Fixed
+    image: apache/spark:3.5.3  # Fixed - using official Apache image
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     ...
 ```
 
@@ -81,10 +85,12 @@ These fixes will allow the Pipeline Test workflow to:
 ## Commit
 
 ```bash
-git add docker-compose.yml
-git commit -m "Fix docker-compose.yml
+git add docker-compose.yml docs/DOCKER_COMPOSE_FIX.md
+git commit -m "Fix docker-compose.yml: switch to Apache Spark image
 
 - Remove obsolete version directive
-- Fix Spark image tag (3.5 → 3.5.3)"
+- Switch from bitnami/spark to apache/spark:3.5.3
+- Update Spark commands for official Apache image
+- Avoid Spark 4.x for compatibility"
 git push origin main
 ```

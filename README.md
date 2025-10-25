@@ -139,7 +139,7 @@ salary_trends:      Salary analysis by role/location
 
 - **Python 3.11**: Core programming language
 - **Apache Airflow 2.8**: Workflow orchestration
-- **Apache Spark 3.5**: Large-scale data processing
+- **Apache Spark 3.5.3**: Large-scale data processing
 - **Pandas**: Data manipulation and analysis
 - **BeautifulSoup4 & Requests**: Web scraping
 - **PostgreSQL 15**: Data storage
