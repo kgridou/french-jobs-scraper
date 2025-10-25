@@ -1,0 +1,25 @@
+# Web Scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==5.1.0
+fake-useragent==1.4.0
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.3
+pyspark==3.5.0
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.25
+
+# Configuration
+pyyaml==6.0.1
+
+# Utilities
+python-dotenv==1.0.0
+pytz==2023.3
+
+# Apache Airflow providers (if not already included in base image)
+apache-airflow-providers-postgres==5.10.0
+apache-airflow-providers-apache-spark==4.7.0

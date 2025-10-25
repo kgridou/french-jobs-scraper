@@ -1,0 +1,125 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Airflow
+logs/
+airflow.db
+airflow.cfg
+webserver_config.py
+standalone_admin_password.txt
+airflow-webserver.pid
+*.log
+
+# Data files (scraped and processed data)
+data/raw/*.json
+data/processed/*.parquet
+data/processed/*.csv
+data/analytics/*.parquet
+data/analytics/*.csv
+
+# But keep the directory structure
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/analytics/.gitkeep
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Spark
+metastore_db/
+spark-warehouse/
+derby.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Secrets and credentials
+secrets/
+credentials/
+*.key
+*.pem
+*.crt
+
+# Compiled files
+*.class
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar

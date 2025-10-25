@@ -1,0 +1,86 @@
+# Scraper Configuration
+
+sources:
+  indeed:
+    enabled: true
+    base_url: "https://fr.indeed.com"
+    search_params:
+      keywords:
+        - "data engineer"
+        - "développeur python"
+        - "data scientist"
+        - "ingénieur données"
+        - "développeur web"
+      locations:
+        - "Paris"
+        - "Lyon"
+        - "Marseille"
+        - "Toulouse"
+        - "Nantes"
+    max_pages: 5
+    rate_limit: 2  # seconds between requests
+    
+  linkedin:
+    enabled: false  # Requires authentication
+    base_url: "https://www.linkedin.com/jobs"
+    search_params:
+      keywords:
+        - "data engineering"
+        - "python developer"
+      locations:
+        - "Paris, France"
+        - "Lyon, France"
+    max_pages: 3
+    rate_limit: 3
+
+scraping:
+  max_jobs_per_run: 500
+  timeout: 30  # request timeout in seconds
+  retry_attempts: 3
+  retry_delay: 5  # seconds
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  
+processing:
+  remove_duplicates: true
+  duplicate_threshold_days: 30
+  min_salary: 20000  # EUR per year
+  max_salary: 200000  # EUR per year
+  
+storage:
+  batch_size: 100
+  data_retention_days: 365  # Keep data for 1 year
+  
+categories:
+  tech_keywords:
+    "Développement Web": ["web", "frontend", "backend", "fullstack", "react", "angular", "vue", "javascript", "typescript"]
+    "Data Science": ["data scientist", "machine learning", "deep learning", "ml", "ai", "statistiques"]
+    "Data Engineering": ["data engineer", "etl", "pipeline", "airflow", "spark", "hadoop", "kafka"]
+    "DevOps": ["devops", "kubernetes", "docker", "ci/cd", "jenkins", "terraform", "ansible"]
+    "Cloud Computing": ["aws", "azure", "gcp", "cloud", "serverless"]
+    "Cybersécurité": ["sécurité", "security", "cybersecurity", "pentest", "soc"]
+    "Mobile": ["ios", "android", "react native", "flutter", "mobile"]
+    "Database": ["dba", "database", "sql", "postgresql", "mongodb", "redis"]
+  
+contract_types:
+  - "CDI"
+  - "CDD"
+  - "Freelance"
+  - "Stage"
+  - "Alternance"
+  - "Interim"
+  
+experience_levels:
+  - "Junior"
+  - "Confirmé"
+  - "Senior"
+  - "Expert"
+  - "Débutant"
+  
+remote_types:
+  - "Full Remote"
+  - "Hybrid"
+  - "On-site"
+  - "Télétravail partiel"
