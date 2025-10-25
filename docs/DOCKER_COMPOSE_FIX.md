@@ -20,6 +20,7 @@ Removed `version: '3.8'` from the top of the file.
 **Error:**
 ```
 manifest for bitnami/spark:3.5 not found: manifest unknown
+manifest for bitnami/spark:3.5.1 not found: manifest unknown
 ```
 
 **Fix:**
@@ -28,13 +29,14 @@ Changed Spark image tags:
 # Before
 image: bitnami/spark:3.5
 
-# After  
-image: bitnami/spark:3.5.1
+# After
+image: bitnami/spark:3.5.3
 ```
 
 **Why:**
-- The `bitnami/spark:3.5` tag doesn't exist in Docker Hub
-- Available versions are like 3.5.1, 3.5.0, etc.
+- The `bitnami/spark:3.5` and `3.5.1` tags don't exist in Docker Hub
+- Available versions are like 3.5.3, 3.5.6-1, etc.
+- Using `bitnami/spark:3.5.3` which is a confirmed available tag
 - This prevents the "manifest unknown" error
 
 ## Updated docker-compose.yml Structure
@@ -52,11 +54,11 @@ services:
     ...
 
   spark-master:
-    image: bitnami/spark:3.5.1  # Fixed
+    image: bitnami/spark:3.5.3  # Fixed
     ...
 
   spark-worker:
-    image: bitnami/spark:3.5.1  # Fixed
+    image: bitnami/spark:3.5.3  # Fixed
     ...
 ```
 
@@ -83,6 +85,6 @@ git add docker-compose.yml
 git commit -m "Fix docker-compose.yml
 
 - Remove obsolete version directive
-- Fix Spark image tag (3.5 → 3.5.1)"
+- Fix Spark image tag (3.5 → 3.5.3)"
 git push origin main
 ```
