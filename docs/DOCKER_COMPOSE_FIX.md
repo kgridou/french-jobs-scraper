@@ -75,22 +75,58 @@ docker compose config
 
 Should show no warnings or errors.
 
+### 3. Missing Airflow Providers
+**Error:**
+```
+ModuleNotFoundError: No module named 'airflow.providers.apache'
+```
+
+**Fix:**
+Uncommented Airflow provider packages in requirements.txt:
+```python
+# Before (commented out)
+# apache-airflow-providers-postgres==5.10.0
+# apache-airflow-providers-apache-spark==4.7.0
+
+# After (active)
+apache-airflow-providers-postgres==5.10.0
+apache-airflow-providers-apache-spark==4.7.0
+```
+
+**Why:**
+- The DAG uses SparkSubmitOperator which requires the Apache Spark provider
+- PostgreSQL operator also needs the Postgres provider
+- These were commented out assuming they were in the base image, but they need to be explicitly installed
+
+### 4. Missing Scrapers Directory
+**Fix:**
+Added scrapers directory to Dockerfile:
+```dockerfile
+COPY --chown=airflow:root ./scrapers /opt/airflow/scrapers
+```
+
+**Why:**
+- The DAG imports scraper classes from the `scrapers/` directory
+- Without copying this directory, imports fail at runtime
+
 ## Impact on GitHub Actions
 
 These fixes will allow the Pipeline Test workflow to:
 ✅ Pull all Docker images successfully
 ✅ Start all services without manifest errors
+✅ Load DAGs without import errors
 ✅ Run the full integration test
 
 ## Commit
 
 ```bash
-git add docker-compose.yml docs/DOCKER_COMPOSE_FIX.md
-git commit -m "Fix docker-compose.yml: switch to Apache Spark image
+git add docker-compose.yml Dockerfile requirements.txt docs/DOCKER_COMPOSE_FIX.md
+git commit -m "Fix Docker and Airflow configuration
 
-- Remove obsolete version directive
+- Remove obsolete version directive from docker-compose.yml
 - Switch from bitnami/spark to apache/spark:3.5.3
-- Update Spark commands for official Apache image
-- Avoid Spark 4.x for compatibility"
+- Add Airflow providers (apache-spark, postgres) to requirements.txt
+- Copy scrapers directory in Dockerfile
+- Update Spark commands for official Apache image"
 git push origin main
 ```

@@ -22,4 +22,5 @@ RUN pip install --no-cache-dir --user -r /requirements.txt
 # Copy application files
 COPY --chown=airflow:root ./dags /opt/airflow/dags
 COPY --chown=airflow:root ./scripts /opt/airflow/scripts
+COPY --chown=airflow:root ./scrapers /opt/airflow/scrapers
 COPY --chown=airflow:root ./config /opt/airflow/config
