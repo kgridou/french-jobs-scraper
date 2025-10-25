@@ -68,7 +68,9 @@ jobs:
     - name: Trigger DAG (dry run test)
       run: |
         echo "Testing DAG trigger (not actually running scraper to avoid rate limits)"
-        docker compose exec -T airflow-webserver airflow dags test french_jobs_pipeline 2024-01-01 || echo "DAG test completed"
+        echo "Note: Scraping may fail with 403/404 in CI (expected - job sites block cloud IPs)"
+        echo "Note: Spark task may fail if no data (expected in CI environment)"
+        docker compose exec -T airflow-webserver airflow dags test french_jobs_pipeline 2024-01-01 || echo "DAG test completed with expected CI limitations"
       continue-on-error: true
 
     - name: Verify data directories exist

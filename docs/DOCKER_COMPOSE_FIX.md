@@ -109,6 +109,28 @@ COPY --chown=airflow:root ./scrapers /opt/airflow/scrapers
 - The DAG imports scraper classes from the `scrapers/` directory
 - Without copying this directory, imports fail at runtime
 
+### 5. Missing Java for Spark
+**Error:**
+```
+JAVA_HOME is not set
+```
+
+**Fix:**
+Added Java installation to Dockerfile:
+```dockerfile
+# Install Java for Spark
+RUN apt-get install -y openjdk-17-jdk-headless procps
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$PATH:$JAVA_HOME/bin
+```
+
+**Why:**
+- PySpark requires Java to run
+- The `SparkSubmitOperator` needs Java to execute spark-submit commands
+- Also installed `procps` for ps command needed by Spark
+
 ## Impact on GitHub Actions
 
 These fixes will allow the Pipeline Test workflow to:
