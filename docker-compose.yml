@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-airflow-common:
   &airflow-common
   build: .
@@ -112,7 +110,7 @@ services:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
 
   spark-master:
-    image: bitnami/spark:3.5
+    image: bitnami/spark:3.5.1
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -129,7 +127,7 @@ services:
     restart: always
 
   spark-worker:
-    image: bitnami/spark:3.5
+    image: bitnami/spark:3.5.1
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
