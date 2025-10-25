@@ -120,6 +120,7 @@ french-jobs-scraper/
 │   └── scraper_config.yaml        # Scraping parameters, keywords, locations, rate limits
 ├── docs/                          # Additional documentation
 │   ├── ARCHITECTURE.md            # System architecture details
+│   ├── CI_CD.md                   # CI/CD pipeline documentation
 │   ├── QUICKSTART.md              # Quick start guide
 │   ├── STRUCTURE.md               # Project structure details
 │   ├── PROJECT_SUMMARY.md         # Project overview
@@ -131,6 +132,14 @@ french-jobs-scraper/
 │   ├── processed/                 # Cleaned Parquet files (gitignored)
 │   └── analytics/                 # Analytics Parquet files (gitignored)
 ├── logs/                          # Airflow logs (gitignored)
+├── tests/                         # Unit and integration tests
+│   ├── __init__.py
+│   └── test_basic.py              # Basic tests for CI
+├── .github/
+│   └── workflows/                 # GitHub Actions CI/CD
+│       ├── ci.yml                 # Linting, testing, security
+│       ├── pipeline-test.yml      # Full pipeline integration test
+│       └── docker-publish.yml     # Docker build and push
 ├── docker-compose.yml             # Service orchestration
 ├── Dockerfile                     # Custom Airflow image
 ├── Dockerfile.airflow             # Alternative Airflow build
@@ -279,6 +288,59 @@ Key variables set in docker-compose.yml:
 - Use Pandas chunking for very large files
 - Increase Spark parallelism settings
 - Consider materialized views for complex analytics
+
+## CI/CD Pipeline
+
+The project includes comprehensive GitHub Actions workflows for continuous integration and deployment.
+
+### Workflows
+
+**CI (`ci.yml`)** - Runs on push/PR to main:
+- Linting (Black, Flake8)
+- Unit testing with pytest
+- YAML/SQL validation
+- Docker image builds
+- Security scanning (Safety, Bandit)
+
+**Pipeline Integration Test (`pipeline-test.yml`)** - Dogfooding approach:
+- Starts full docker-compose stack
+- Tests actual service integration (PostgreSQL, Airflow, Spark)
+- Validates DAGs and database schema
+- Runs scraper tests
+- Executes on push, PR, and weekly schedule
+
+**Docker Build (`docker-publish.yml`)**:
+- Builds and publishes to GitHub Container Registry
+- Security scanning with Trivy
+- Multi-platform support
+- Automated versioning
+
+### Running Tests Locally
+
+```bash
+# Run linting
+black --check scrapers/ scripts/ dags/
+flake8 scrapers/ scripts/ dags/
+
+# Run tests
+pytest tests/ -v --cov=scrapers --cov=scripts
+
+# Test Docker build
+docker build -f Dockerfile -t test .
+docker-compose config
+```
+
+### Adding Tests
+
+Create test files in `tests/` directory:
+```python
+# tests/test_scrapers.py
+def test_scraper_functionality():
+    # Your test here
+    pass
+```
+
+See [docs/CI_CD.md](docs/CI_CD.md) for complete CI/CD documentation.
 
 ## Technology Versions
 

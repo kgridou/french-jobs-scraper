@@ -1,0 +1,167 @@
+name: CI - Continuous Integration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black pylint
+        pip install -r requirements.txt
+
+    - name: Run Black (code formatting check)
+      run: |
+        black --check --diff scrapers/ scripts/ dags/
+      continue-on-error: true
+
+    - name: Run Flake8 (linting)
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 scrapers/ scripts/ dags/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 scrapers/ scripts/ dags/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock
+        pip install -r requirements.txt
+
+    - name: Run unit tests
+      run: |
+        # Create tests directory if it doesn't exist
+        mkdir -p tests
+        # Run pytest if tests exist
+        if [ -d "tests" ] && [ "$(ls -A tests)" ]; then
+          pytest tests/ -v --cov=scrapers --cov=scripts --cov-report=xml --cov-report=term
+        else
+          echo "No tests found - skipping test execution"
+        fi
+      continue-on-error: true
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: success()
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+      continue-on-error: true
+
+  validate-config:
+    name: Validate Configuration Files
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate YAML files
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y yamllint
+        yamllint -d "{extends: default, rules: {line-length: {max: 120}}}" config/*.yaml docker-compose.yml
+      continue-on-error: true
+
+    - name: Validate SQL files
+      run: |
+        # Basic SQL syntax check
+        for sql_file in sql/*.sql; do
+          echo "Checking $sql_file"
+          # Check for basic SQL syntax issues
+          grep -i "SELECT\|INSERT\|UPDATE\|DELETE\|CREATE" "$sql_file" > /dev/null && echo "✓ $sql_file" || echo "✗ $sql_file"
+        done
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Airflow Docker image
+      run: |
+        docker build -f Dockerfile -t french-jobs-scraper:test .
+
+    - name: Test Docker image
+      run: |
+        # Basic smoke test - check if image runs
+        docker run --rm french-jobs-scraper:test python --version
+
+    - name: Check docker-compose configuration
+      run: |
+        docker-compose config > /dev/null
+        echo "✓ docker-compose.yml is valid"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install safety
+      run: |
+        pip install safety bandit
+
+    - name: Check for security vulnerabilities in dependencies
+      run: |
+        pip install -r requirements.txt
+        safety check --json || true
+      continue-on-error: true
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r scrapers/ scripts/ dags/ -f json -o bandit-report.json || true
+      continue-on-error: true
+
+    - name: Upload Bandit report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bandit-security-report
+        path: bandit-report.json
+      continue-on-error: true

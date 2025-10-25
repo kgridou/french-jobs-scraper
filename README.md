@@ -203,12 +203,23 @@ Visit http://localhost:8081 for Spark Master UI
 Additional documentation is available in the `docs/` directory:
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Detailed step-by-step setup guide
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design
+- **[CI_CD.md](docs/CI_CD.md)** - CI/CD pipeline with GitHub Actions
 - **[STRUCTURE.md](docs/STRUCTURE.md)** - Complete project structure details
 - **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Project overview and features
 - **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Getting started guide
 - **[SETUP_NOTES.md](docs/SETUP_NOTES.md)** - Additional setup notes
 
 For AI-assisted development, see **[CLAUDE.md](CLAUDE.md)** in the root directory.
+
+## 🔄 CI/CD
+
+This project includes comprehensive GitHub Actions workflows:
+
+- **CI Pipeline** - Linting, testing, security scanning
+- **Pipeline Integration Test** - Full end-to-end testing with actual services (dogfooding 🐕)
+- **Docker Build** - Automated container image builds and publishing
+
+See [docs/CI_CD.md](docs/CI_CD.md) for details.
 
 ## 📝 Development
 
