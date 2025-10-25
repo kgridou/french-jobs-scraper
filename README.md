@@ -221,7 +221,11 @@ This project includes comprehensive GitHub Actions workflows:
 - **Pipeline Integration Test** - Full end-to-end testing with actual services (dogfooding 🐕)
 - **Docker Build** - Automated container image builds and publishing
 
-See [docs/CI_CD.md](docs/CI_CD.md) for details.
+**Note:** Scraping may show 403 errors in CI (expected - job sites block cloud IPs). Pipeline demonstrates proper error handling.
+
+📚 **Documentation:**
+- [docs/CI_CD.md](docs/CI_CD.md) - Workflow details and configuration
+- [docs/GITHUB_ACTIONS_STATUS.md](docs/GITHUB_ACTIONS_STATUS.md) - Status, known behaviors, troubleshooting
 
 ## 📝 Development
 
