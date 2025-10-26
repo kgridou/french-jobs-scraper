@@ -347,13 +347,14 @@ clean_data_task = PythonOperator(
 
 process_spark_task = SparkSubmitOperator(
     task_id='process_with_spark',
-    application='/opt/airflow/spark_jobs/enrich_jobs.py',
+    application='/opt/airflow/scripts/enrich_jobs.py',
     conn_id='spark_default',
     conf={
-        'spark.master': 'spark://spark-master:7077',
         'spark.driver.memory': '2g',
         'spark.executor.memory': '2g'
     },
+    deploy_mode='client',
+    master='spark://spark-master:7077',
     dag=dag,
 )
 

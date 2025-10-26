@@ -10,24 +10,28 @@ This is a French job postings data engineering pipeline that scrapes job boards 
 
 The pipeline follows this flow:
 ```
-Web Scraping → PostgreSQL (raw_jobs) → Pandas Cleaning → PySpark Analytics → PostgreSQL (cleaned_jobs, analytics)
-                                              ↑
-                                         Airflow Orchestration
+Web Scraping → JSON Files → Pandas Cleaning → Parquet → Load to PostgreSQL
+                 (raw/)       (processed/)                  (jobs_data.jobs)
+                                    ↓
+                           Spark Enrichment → Analytics
+                             (analytics/)      (PostgreSQL)
+                                    ↑
+                             Airflow Orchestration
 ```
 
 **Key Components:**
 - **Airflow**: Orchestrates the ETL pipeline (webserver on :8080, scheduler)
-- **PostgreSQL**: Stores raw scraped data, cleaned data, and analytics tables (port :5432)
+- **PostgreSQL**: Two databases - `airflow` (metadata) and `jobs_db` (data warehouse with `jobs_data` schema)
 - **Spark**: Distributed processing with master (:8081) and worker nodes
-- **Python Scripts**: Scrapers (Indeed, HelloWork), Pandas processor, Spark enrichment
+- **Scrapers**: Object-oriented scraper classes inheriting from `BaseScraper` with session management and rate limiting
 
 **Data Flow:**
-1. Scrapers write JSON to `data/raw/`
-2. Validation checks data quality
-3. Pandas cleans data → Parquet in `data/processed/`
-4. Spark enriches data → Parquet in `data/analytics/`
-5. Data loaded to PostgreSQL tables
-6. Analytics aggregations generated
+1. Scraper classes write JSON files to `data/raw/` with timestamps
+2. `validate_raw_data` task checks data quality
+3. `clean_with_pandas` deduplicates and cleans → Parquet in `data/processed/`
+4. `process_with_spark` enriches data (SparkSubmitOperator) → Parquet in `data/analytics/`
+5. `load_to_postgres` bulk loads cleaned data to `jobs_data.jobs` table
+6. `generate_analytics` creates daily statistics in `jobs_data.daily_job_stats`
 
 ## Development Commands
 
@@ -92,91 +96,86 @@ psql -h localhost -U airflow -d jobs_db
 # Password: airflow
 ```
 
-## Code Structure
+## Code Architecture
 
-```
-french-jobs-scraper/
-├── dags/
-│   └── french_jobs_pipeline.py    # Main Airflow DAG
-├── scrapers/
-│   ├── __init__.py                # Package initialization
-│   ├── base_scraper.py            # Abstract base with session management, rate limiting
-│   ├── indeed_scraper.py          # Indeed.fr specific implementation
-│   └── hellowork_scraper.py       # HelloWork.com implementation
-├── scripts/
-│   ├── scraper.py                 # Generic scraper base class
-│   ├── pandas_processor.py        # Data cleaning with Pandas
-│   ├── spark_processor.py         # PySpark analytics and enrichment
-│   ├── enrich_jobs.py             # Spark job for skill extraction and classification
-│   └── shell/                     # Shell utility scripts
-│       ├── start.sh               # Startup script (initializes and starts all services)
-│       ├── stop.sh                # Stop script (gracefully stops services)
-│       └── cleanup.sh             # Cleanup script (removes containers, volumes, data)
-├── sql/
-│   ├── init.sql                   # Database schema initialization
-│   ├── sample_queries.sql         # Example analytics queries
-│   └── analytics_queries.sql      # Additional query examples
-├── config/
-│   └── scraper_config.yaml        # Scraping parameters, keywords, locations, rate limits
-├── docs/                          # Additional documentation
-│   ├── ARCHITECTURE.md            # System architecture details
-│   ├── CI_CD.md                   # CI/CD pipeline documentation
-│   ├── QUICKSTART.md              # Quick start guide
-│   ├── STRUCTURE.md               # Project structure details
-│   ├── PROJECT_SUMMARY.md         # Project overview
-│   ├── PROJECT_ORGANIZATION.md    # Reorganization notes
-│   ├── GETTING_STARTED.md         # Getting started guide
-│   └── SETUP_NOTES.md             # Additional setup information
-├── data/
-│   ├── raw/                       # Scraped JSON files (gitignored)
-│   ├── processed/                 # Cleaned Parquet files (gitignored)
-│   └── analytics/                 # Analytics Parquet files (gitignored)
-├── logs/                          # Airflow logs (gitignored)
-├── tests/                         # Unit and integration tests
-│   ├── __init__.py
-│   └── test_basic.py              # Basic tests for CI
-├── .github/
-│   └── workflows/                 # GitHub Actions CI/CD
-│       ├── ci.yml                 # Linting, testing, security
-│       ├── pipeline-test.yml      # Full pipeline integration test
-│       └── docker-publish.yml     # Docker build and push
-├── docker-compose.yml             # Service orchestration
-├── Dockerfile                     # Custom Airflow image
-├── Dockerfile.airflow             # Alternative Airflow build
-├── Dockerfile.spark               # Spark image definition
-├── requirements.txt               # Python dependencies
-├── Makefile                       # Convenience commands
-├── .env.example                   # Environment variables template
-├── .gitignore                     # Git ignore rules
-├── CLAUDE.md                      # This file - AI development guide
-└── README.md                      # Main project documentation
+### Scraper Design Pattern
+
+All scrapers inherit from `BaseScraper` (scrapers/base_scraper.py):
+- **Abstract methods**: `scrape_list_page()` and `scrape_job_details()` must be implemented by child classes
+- **Built-in features**: Session management with retry strategy, random delays (2-5s), user-agent rotation
+- **Statistics tracking**: Counts successful/failed/duplicate scrapes via `self.stats`
+- **File output**: `scrape_all()` method orchestrates pagination and saves JSON to timestamped files
+
+**Creating a new scraper:**
+```python
+from scrapers.base_scraper import BaseScraper
+
+class NewSiteScraper(BaseScraper):
+    def __init__(self, search_query, location, **kwargs):
+        super().__init__(
+            source_name="newsite",
+            base_url="https://example.com",
+            **kwargs
+        )
+
+    def scrape_list_page(self, page_num: int) -> List[str]:
+        # Return list of job URLs
+        pass
+
+    def scrape_job_details(self, job_url: str) -> Optional[Dict]:
+        # Return job data dict with required fields
+        pass
 ```
 
-**Important:** The Docker volume mounts in docker-compose.yml map these local directories to container paths:
+### DAG Function Pattern
+
+All Python callable functions in `dags/french_jobs_pipeline.py` must add the scrapers directory to the Python path:
+
+```python
+def my_dag_function(**kwargs):
+    import sys
+    sys.path.insert(0, '/opt/airflow')  # Critical for imports to work
+
+    from scrapers.indeed_scraper import IndeedScraper
+    # ... rest of function
+```
+
+This is required because the `scrapers/` directory is mounted but not automatically in PYTHONPATH.
+
+### Docker Volume Mounts
+
+Local directories map to container paths (defined in docker-compose.yml):
 - `./dags` → `/opt/airflow/dags`
-- `./scripts` → `/opt/airflow/scripts`
-- `./scrapers` → `/opt/airflow/scrapers` (may need to be added to PYTHONPATH)
+- `./scripts` → `/opt/airflow/scripts` (includes Spark jobs like enrich_jobs.py)
+- `./scrapers` → `/opt/airflow/scrapers`
 - `./config` → `/opt/airflow/config`
 - `./data` → `/opt/airflow/data`
 
+**Important**: When running Spark jobs via SparkSubmitOperator, use paths like `/opt/airflow/scripts/enrich_jobs.py` and set `master='spark://spark-master:7077'` explicitly (not in conf dict to avoid conflicts with default YARN master).
+
 ## Database Schema
 
-**Main Tables:**
-- `raw_jobs` - Scraped data with JSONB raw_data column
-- `cleaned_jobs` - Processed jobs with foreign keys to dimensions
+The schema is initialized by `sql/init.sql` on first container startup.
+
+**Key Tables (all in `public` schema):**
+- `raw_jobs` - Scraped data with JSONB raw_data column, unique constraint on job_id
+- `cleaned_jobs` - Processed jobs with foreign keys to companies and locations
 - `companies` - Company dimension with normalized names
-- `locations` - French cities/regions with normalization
-- `job_categories` - Job category dimension
-- `job_analytics` - Pre-aggregated statistics by category/location
-- `salary_trends` - Time-series salary analysis
+- `locations` - French cities/regions with normalized_location unique constraint
+- `job_categories` - Job category dimension pre-populated with French tech categories
+- `job_analytics` - Pre-aggregated statistics (unique on analysis_date, category, location)
+- `salary_trends` - Time-series salary analysis by period, category, location, experience
 
 **Important Indexes:**
 - `raw_jobs`: source, posting_date, scraped_at
 - `cleaned_jobs`: category, location_id, company_id, posting_date
-- `job_analytics`: analysis_date, category
+- `companies`: normalized_name
+- `locations`: city, region
 
 **Views:**
-- `vw_job_summary` - Joins cleaned_jobs with companies and locations for easy querying
+- `vw_job_summary` - Joins cleaned_jobs with companies and locations for analytics queries
+
+**Note**: The DAG loads data to `jobs_data.jobs` table which may be created dynamically. Check DAG's `load_to_postgres()` function for actual table structure.
 
 ## Working with the DAG
 
@@ -186,7 +185,7 @@ french-jobs-scraper/
    - `scrape_hellowork` - Scrapes HelloWork
 2. `validate_raw_data` - Quality checks on scraped JSON
 3. `clean_with_pandas` - Deduplication, standardization, feature extraction
-4. `process_with_spark` - SparkSubmitOperator for enrichment job
+4. `process_with_spark` - SparkSubmitOperator running `/opt/airflow/scripts/enrich_jobs.py`
 5. `load_to_postgres` - Bulk load cleaned data to database
 6. `generate_analytics` - Create daily statistics
 7. `data_quality_check` - Final validation
@@ -197,157 +196,322 @@ french-jobs-scraper/
 - Retries: 2 with 5-minute delay
 - Connections required: `postgres_default`, `spark_default`
 
+**Spark Task Configuration:**
+```python
+SparkSubmitOperator(
+    application='/opt/airflow/scripts/enrich_jobs.py',
+    master='spark://spark-master:7077',  # Set explicitly, not in conf
+    deploy_mode='client',
+    conf={'spark.driver.memory': '2g', 'spark.executor.memory': '2g'}
+)
+```
+
 ## Customizing the Pipeline
 
-**Add New Job Sources:**
-1. Create new scraper in `scrapers/new_source_scraper.py` inheriting from `BaseScraper`
-2. Implement `scrape_list_page()` and `scrape_job_details()` methods
-3. Add source configuration to `config/scraper_config.yaml`
-4. Add scraping task to Airflow DAG in the `scraping` TaskGroup
+### Adding a New Job Source
 
-**Modify Search Parameters:**
-Edit `config/scraper_config.yaml`:
-- `sources.indeed.search_params.keywords` - Add search terms
-- `sources.indeed.search_params.locations` - Add cities
-- `sources.indeed.max_pages` - Control scraping depth
-- `sources.indeed.rate_limit` - Adjust delay between requests
+1. **Create scraper class** in `scrapers/new_source_scraper.py`:
+   ```python
+   from scrapers.base_scraper import BaseScraper
 
-**Change Processing Logic:**
-- Data cleaning: Edit `scripts/pandas_processor.py` or the `clean_with_pandas()` function in DAG
-- Feature extraction: Modify `scripts/spark_processor.py` or `scripts/enrich_jobs.py`
-- Analytics: Update `generate_analytics()` function or add new tasks
+   class NewSourceScraper(BaseScraper):
+       def __init__(self, search_query, **kwargs):
+           super().__init__(
+               source_name="newsource",
+               base_url="https://newsource.com",
+               delay_min=kwargs.get('delay_min', 2),
+               delay_max=kwargs.get('delay_max', 5)
+           )
+           self.search_query = search_query
 
-**Adjust Schedule:**
-In `dags/french_jobs_pipeline.py`, change `schedule_interval`:
+       def scrape_list_page(self, page_num: int) -> List[str]:
+           # Implement listing page scraping
+           # Return list of job URLs
+
+       def scrape_job_details(self, job_url: str) -> Optional[Dict]:
+           # Implement job detail scraping
+           # Return dict with keys: title, company, location, url, etc.
+   ```
+
+2. **Add configuration** to `config/scraper_config.yaml`:
+   ```yaml
+   sources:
+     newsource:
+       enabled: true
+       base_url: "https://newsource.com"
+       search_params:
+         keywords: ["data engineer"]
+         locations: ["Paris"]
+       max_pages: 5
+       rate_limit: 2
+   ```
+
+3. **Add DAG task** in `dags/french_jobs_pipeline.py` to the `scraping` TaskGroup:
+   ```python
+   def scrape_newsource(**kwargs):
+       import sys
+       sys.path.insert(0, '/opt/airflow')
+       from scrapers.new_source_scraper import NewSourceScraper
+       # ... implement scraping logic similar to scrape_indeed()
+
+   scrape_newsource_task = PythonOperator(
+       task_id='scrape_newsource',
+       python_callable=scrape_newsource,
+       dag=dag,
+   )
+   ```
+
+### Modifying Search Parameters
+
+Edit `config/scraper_config.yaml` (changes take effect on next DAG run):
+- `sources.indeed.search_params.keywords` - Job search terms
+- `sources.indeed.search_params.locations` - French cities to search
+- `sources.indeed.max_pages` - Number of pages to scrape (5 pages ≈ 75-150 jobs)
+- `sources.indeed.rate_limit` - Delay between requests in seconds
+
+### Changing Processing Logic
+
+- **Data cleaning**: Modify `clean_with_pandas()` function in `dags/french_jobs_pipeline.py` (around line 177-246)
+- **Spark processing**: Edit `scripts/enrich_jobs.py` for feature extraction (mounted to `/opt/airflow/scripts/`)
+- **Analytics**: Update `generate_analytics()` function (around line 292-318) for custom metrics
+
+### Adjusting DAG Schedule
+
+In `dags/french_jobs_pipeline.py` line 36, change `schedule_interval`:
 - `'0 */6 * * *'` - Every 6 hours
-- `'0 0 * * 1'` - Weekly on Monday
-- `None` - Manual trigger only
+- `'0 0 * * 1'` - Weekly on Monday at midnight
+- `None` - Manual trigger only (recommended for development)
 
-## Important Notes
+## Important Technical Details
 
-**Rate Limiting:**
-The scrapers implement delays between requests (2-5 seconds by default). Always respect robots.txt and terms of service. This is an educational project.
+### Rate Limiting and Ethics
+The scrapers implement delays between requests (2-5 seconds by default) via `BaseScraper._random_delay()`. This is an educational project - always respect robots.txt and terms of service.
 
-**Database Connections:**
-- Airflow uses `postgres_default` connection (configured in docker-compose.yml environment variables)
-- Connection string: `postgresql+psycopg2://airflow:airflow@postgres/airflow`
-- Jobs database: `jobs_db` on same server
+### Database Connections
+- **Airflow metadata**: `postgres_default` connection → `postgresql+psycopg2://airflow:airflow@postgres/airflow`
+- **Jobs database**: `jobs_db` on same PostgreSQL server
+- **Environment variables**: `JOBS_DB_HOST`, `JOBS_DB_PORT`, `JOBS_DB_NAME`, `JOBS_DB_USER`, `JOBS_DB_PASSWORD`
+- **Connection in code**: Use `PostgresHook(postgres_conn_id='postgres_default')` for database operations
 
-**Spark Configuration:**
-- Master URL: `spark://spark-master:7077`
-- Worker memory: 2G
-- Worker cores: 2
-- Can be scaled by adding more worker services in docker-compose.yml
+### Spark Configuration
+- **Master URL**: `spark://spark-master:7077` (container hostname)
+- **Worker resources**: 2G memory, 2 cores (configurable in docker-compose.yml)
+- **UI access**: http://localhost:8081 for Spark Master UI
+- **Scaling**: Add more `spark-worker` services in docker-compose.yml with unique names
 
-**Data Persistence:**
-- PostgreSQL data: Stored in Docker volume `postgres-db-volume`
-- Local data files: `data/raw/`, `data/processed/`, `data/analytics/`
-- Airflow logs: `logs/`
+### Data Persistence
+- **PostgreSQL**: Named volume `postgres-db-volume` (survives `docker compose down`)
+- **Local files**: `data/raw/`, `data/processed/`, `data/analytics/` (gitignored, persist on host)
+- **Airflow logs**: `logs/` directory (gitignored)
+- **Cleanup**: `make clean` removes volumes and local files (destructive!)
 
-**Environment Variables:**
-Key variables set in docker-compose.yml:
-- `AIRFLOW_UID` - User ID for file permissions (default: 50000)
-- `JOBS_DB_*` - Jobs database connection parameters
-- `SPARK_MASTER_URL` - Spark master connection
+### Container Execution Context
+- **Airflow user**: UID 50000 (set via `AIRFLOW_UID` env var)
+- **File permissions**: Files created in containers may have ownership issues on host (use `chown` if needed)
+- **Rebuilding**: After changing Python dependencies in requirements.txt, run `docker compose up -d --build`
 
-## Common Issues
+## Troubleshooting Common Issues
 
-**Airflow tasks fail with import errors:**
-- Ensure Python files are in the correct mounted volumes
-- Check `sys.path.insert(0, '/opt/airflow')` in DAG functions
-- Verify requirements.txt includes all dependencies
+### Import Errors in Airflow Tasks
+```
+ModuleNotFoundError: No module named 'scrapers'
+```
+**Solution**: Add `sys.path.insert(0, '/opt/airflow')` at the start of DAG functions before importing custom modules.
 
-**Scraper returns no results:**
-- Website HTML structure may have changed (Indeed updates frequently)
-- Check selectors in `scrape_indeed_fr()` or scraper classes
-- Verify rate limiting isn't too aggressive
-- Test with browser developer tools to inspect current HTML
+### Scraper Returns Zero Results
+**Causes**:
+- HTML structure changed (job sites update frequently)
+- Rate limiting too aggressive / IP blocked
+- Incorrect CSS selectors
 
-**Spark job fails:**
-- Check Spark UI at http://localhost:8081 for errors
-- Verify data files exist in expected paths
-- Ensure PostgreSQL JDBC driver is available for Spark-to-PostgreSQL writes
-- Check memory allocation if processing large datasets
+**Debugging**:
+1. Test scraper standalone: `make test-scraper`
+2. Check scraper stats: Look for `self.stats['failed']` count in logs
+3. Inspect HTML manually: Use browser DevTools on target site
+4. Verify selectors in `scrapers/indeed_scraper.py` or `scrapers/hellowork_scraper.py`
 
-**Database connection errors:**
-- Ensure PostgreSQL service is healthy: `docker compose ps`
-- Wait for initialization to complete (~30-60 seconds on first run)
-- Check logs: `docker compose logs postgres`
+### Spark Job Failures
+**Common errors**:
+- `Cannot execute: spark-submit --master yarn` - Conflicting master configuration
+- Application file not found - Wrong path in SparkSubmitOperator
+
+**Solutions**:
+1. Verify application path is correct: `/opt/airflow/scripts/enrich_jobs.py` (not `/opt/airflow/spark_jobs/`)
+2. Set `master='spark://spark-master:7077'` as parameter, NOT in conf dict
+3. Check Spark UI at http://localhost:8081 for executor errors
+4. Verify input files exist: `ls data/processed/`
+5. Check Spark logs: `make logs-spark`
+6. Ensure sufficient memory allocation (default 2G per worker)
+
+### Database Connection Refused
+**Solution**:
+1. Check PostgreSQL health: `docker compose ps postgres` (should be "healthy")
+2. Wait for initialization: First run takes 30-60 seconds
+3. View initialization logs: `docker compose logs postgres | grep -i "database system is ready"`
+4. Verify network: `docker compose exec airflow-webserver ping postgres`
+
+### File Permission Errors
+When files created in containers can't be accessed on host:
+```bash
+sudo chown -R $USER:$USER data/ logs/
+```
+
+### DAG Not Appearing in Airflow UI
+1. Check DAG syntax: `docker compose exec airflow-webserver airflow dags list`
+2. View scheduler logs: `make logs-airflow`
+3. Verify file is in `dags/` directory and ends with `.py`
+4. Check for Python syntax errors in DAG file
 
 ## Performance Tuning
 
-**For Larger Datasets:**
-- Increase `max_pages` in scraper configuration
-- Add more Spark workers in docker-compose.yml
-- Increase Spark worker memory/cores
-- Add database indexes for common query patterns
-- Partition large tables by date
+### Scraping More Jobs
+- Increase `max_pages` in `config/scraper_config.yaml` (5 pages → 10+ pages)
+- Decrease `rate_limit` carefully (respect site limits)
+- Add more keywords to `search_params.keywords`
 
-**For Faster Processing:**
-- Adjust batch_size in `load_to_postgres()` (currently 1000)
-- Use Pandas chunking for very large files
-- Increase Spark parallelism settings
-- Consider materialized views for complex analytics
+### Faster Data Processing
+- **Pandas**: Use chunking in `clean_with_pandas()` for files >100MB
+- **Spark**: Increase parallelism in `process_with_spark` task configuration
+- **Database**: Adjust `chunksize=1000` in `load_to_postgres()` to higher values for bulk inserts
 
-## CI/CD Pipeline
+### Scaling Spark Cluster
+In `docker-compose.yml`, add more workers:
+```yaml
+spark-worker-2:
+  image: apache/spark:3.5.3
+  environment:
+    - SPARK_MODE=worker
+    - SPARK_MASTER_URL=spark://spark-master:7077
+    - SPARK_WORKER_MEMORY=2G
+    - SPARK_WORKER_CORES=2
+  # ... same config as spark-worker
+```
 
-The project includes comprehensive GitHub Actions workflows for continuous integration and deployment.
+### Database Query Optimization
+- Add indexes for frequent queries: `CREATE INDEX idx_name ON table(column);`
+- Use `vw_job_summary` view for joins instead of manual JOINs
+- Consider partitioning `raw_jobs` by `scraped_at` date for time-series queries
 
-### Workflows
+## CI/CD and Testing
 
-**CI (`ci.yml`)** - Runs on push/PR to main:
-- Linting (Black, Flake8)
-- Unit testing with pytest
-- YAML/SQL validation
-- Docker image builds
-- Security scanning (Safety, Bandit)
+### GitHub Actions Workflows
 
-**Pipeline Integration Test (`pipeline-test.yml`)** - Dogfooding approach:
-- Starts full docker-compose stack
-- Tests actual service integration (PostgreSQL, Airflow, Spark)
-- Validates DAGs and database schema
-- Runs scraper tests
-- Executes on push, PR, and weekly schedule
+**CI Pipeline (`.github/workflows/ci.yml`)**:
+- Linting: Black, Flake8
+- Testing: pytest with coverage
+- Validation: YAML/SQL syntax
+- Security: Safety (dependencies), Bandit (code)
+- Triggered on: push, pull requests to main
 
-**Docker Build (`docker-publish.yml`)**:
-- Builds and publishes to GitHub Container Registry
+**Integration Tests (`.github/workflows/pipeline-test.yml`)**:
+- Starts full docker-compose stack in GitHub Actions
+- Tests PostgreSQL, Airflow, Spark integration
+- Validates DAG parsing and database schema
+- Note: Scraping may show 403 errors in CI (job sites block cloud IPs - expected)
+
+**Docker Publishing (`.github/workflows/docker-publish.yml`)**:
+- Builds images and publishes to GitHub Container Registry
 - Security scanning with Trivy
-- Multi-platform support
-- Automated versioning
+- Tagged with commit SHA and version
 
-### Running Tests Locally
+### Local Testing
 
 ```bash
-# Run linting
+# Code quality
 black --check scrapers/ scripts/ dags/
 flake8 scrapers/ scripts/ dags/
 
-# Run tests
+# Run unit tests
 pytest tests/ -v --cov=scrapers --cov=scripts
 
-# Test Docker build
-docker build -f Dockerfile -t test .
-docker compose config
+# Validate configuration
+docker compose config  # Check docker-compose.yml syntax
+yamllint config/scraper_config.yaml
+
+# Test individual components
+make test-scraper   # Run scraper standalone
+make test-pandas    # Run pandas processor
 ```
 
 ### Adding Tests
 
-Create test files in `tests/` directory:
+Create pytest test files in `tests/`:
 ```python
-# tests/test_scrapers.py
-def test_scraper_functionality():
-    # Your test here
-    pass
+# tests/test_indeed_scraper.py
+from scrapers.indeed_scraper import IndeedScraper
+
+def test_scraper_initialization():
+    scraper = IndeedScraper(search_query="test", location="Paris")
+    assert scraper.source_name == "indeed"
+    assert scraper.stats['total_scraped'] == 0
 ```
 
-See [docs/CI_CD.md](docs/CI_CD.md) for complete CI/CD documentation.
+Run tests: `pytest tests/test_indeed_scraper.py -v`
 
-## Technology Versions
+## Key Development Workflows
 
-- Python: 3.11
-- Apache Airflow: 2.8.0
-- Apache Spark: 3.5
-- PostgreSQL: 15
-- Pandas: 2.1.4
-- PySpark: 3.5.0
-- BeautifulSoup4: 4.12.2
+### First-Time Setup
+```bash
+make init           # Create directories, copy .env
+make build          # Build Docker images
+make up             # Start all services
+# Wait 60 seconds for initialization
+# Access http://localhost:8080 (airflow/airflow)
+# Trigger DAG manually or wait for scheduled run
+```
+
+### Daily Development
+```bash
+# Start services
+make up
+
+# Make code changes in scrapers/, scripts/, or dags/
+# Changes are live-mounted, no rebuild needed (except requirements.txt)
+
+# View logs
+make logs-airflow   # Watch Airflow logs
+make shell-airflow  # Interactive shell for debugging
+
+# Stop services (keeps data)
+make down
+```
+
+### After Changing Dependencies
+```bash
+# Update requirements.txt
+make build          # Rebuild images
+make up             # Restart with new dependencies
+```
+
+### Testing Changes
+```bash
+# Validate DAG syntax
+docker compose exec airflow-webserver airflow dags list
+
+# Trigger DAG manually
+docker compose exec airflow-webserver airflow dags trigger french_jobs_pipeline
+
+# Check task status
+docker compose exec airflow-webserver airflow dags state french_jobs_pipeline
+
+# Query database to verify data
+make db-shell
+# In psql: SELECT COUNT(*) FROM jobs_data.jobs;
+```
+
+### Complete Cleanup (Destructive)
+```bash
+make clean          # Removes all containers, volumes, and local data files
+# Use this to reset to fresh state
+```
+
+## Technology Stack
+
+- **Python**: 3.11
+- **Apache Airflow**: 2.8.0 (LocalExecutor with PostgreSQL backend)
+- **Apache Spark**: 3.5.3 (standalone cluster mode)
+- **PostgreSQL**: 15
+- **Pandas**: 2.1.4
+- **PySpark**: 3.5.0
+- **BeautifulSoup4**: 4.12.2
+- **Docker**: Compose V2
